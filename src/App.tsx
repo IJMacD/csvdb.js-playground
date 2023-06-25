@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { CSVDB, RowObject } from 'csvdb.js';
 import './App.css'
+import { useSavedState } from './useSavedState';
 
 function App() {
-  const [csvText, setCSVText] = useState("");
+  const [csvText, setCSVText] = useSavedState("csvdb-js-playground.csv", "");
 
-  const [selectFields, setSelectFields] = useState([] as string[]);
+  const [selectFields, setSelectFields] = useSavedState("csvdb-js-playground.select", [] as string[]);
   const [newSelectField, setNewSelectField] = useState("");
 
-  const [whereText, setWhereText] = useState("");
+  const [whereText, setWhereText] = useSavedState("csvdb-js-playground.where", "");
 
   const db = new CSVDB(csvText);
 
