@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-export function useSavedState<T> (key: string, initialValue: T): [T, ((newValue: T) => void)] {
+type StateSetter<T> = T|((oldState: T) => T);
+
+export function useSavedState<T> (key: string, initialValue: T): [T, ((newValue: StateSetter<T>) => void)] {
     const [state, setState] = useState(() => {
         try {
             const saved = localStorage.getItem(key);
@@ -12,10 +14,10 @@ export function useSavedState<T> (key: string, initialValue: T): [T, ((newValue:
         return initialValue;
     });
 
-    function saveState (newState: T|((oldState: T) => T)) {
-        if (newState instanceof Function) {
-            newState = newState(state);
-        }
+    function saveState (setter: StateSetter<T>) {
+        const newState = (setter instanceof Function) ?
+            setter(state) :
+            setter;
 
         setState(newState);
 
