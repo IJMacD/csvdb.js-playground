@@ -19,6 +19,9 @@ function App() {
 
   const [isDistinct, setIsDistinct] = useSavedState("csvdb-js-playground.distinct", false);
 
+  const [joinTexts, setJoinTexts] = useSavedState("csvdb-js-playground.join", [] as string[]);
+  const [newJoinText, setNewJoinText] = useState("");
+
   const db = new CSVDB(csvText);
 
   const query = db.query();
@@ -51,6 +54,14 @@ function App() {
     catch (e) {}
   }
 
+  for (const join of joinTexts) {
+    try {
+      const f = new Function("row", join);
+      query.join(f);
+    }
+    catch (e) {}
+  }
+
   if (limitText.length > 0) {
     query.fetchFirst(+limitText);
   }
@@ -75,6 +86,16 @@ function App() {
 
   function removeSelectItem (index: number) {
     setSelectFields(fields => [ ...fields.slice(0, index), ...fields.slice(index + 1)]);
+  }
+
+
+  function handleJoinSubmit () {
+    setJoinTexts(f => [...f, newJoinText]);
+    setNewJoinText("");
+  }
+
+  function removeJoin (index: number) {
+    setJoinTexts(texts => [ ...texts.slice(0, index), ...texts.slice(index + 1)]);
   }
 
   return (
@@ -158,6 +179,23 @@ function App() {
               onChange={e => setIsDistinct(e.target.checked)}
             />
           </label>
+        </div>
+        <div className="clause" style={{flexDirection:"column"}}>
+          <label>JOIN <code>function (row) {'{'}</code>
+            <textarea
+              value={newJoinText}
+              onChange={e => setNewJoinText(e.target.value)}
+              style={{display:"block",marginLeft: "2em"}}
+              placeholder="return [row];"
+            />
+            <code>{'}'}</code>
+            <button style={{fontSize:"x-small"}} onClick={handleJoinSubmit}>Add</button>
+          </label>
+          <ul style={{margin:0,paddingLeft:"1em"}}>
+          {
+            joinTexts.map((value,i) => <li key={i} onClick={() => removeJoin(i)} style={{cursor:"pointer"}}>row =&gt; {'{'}{value}{'}'}</li>)
+          }
+          </ul>
         </div>
       </div>
       <h2>Results</h2>
