@@ -87,62 +87,68 @@ function App() {
       />
       <p>Row Count: {db.rowCount}</p>
       <div style={{display:"flex",flexWrap:"wrap"}}>
-        <div className="clause">SELECT(
-          <form onSubmit={handleSelectSubmit} style={{display:"inline-block"}}>
-            <input
-              value={newSelectField}
-              onChange={e => setNewSelectField(e.target.value)}
-              placeholder="*"
-              style={{width:80}}
-            />{' '}
-            <button style={{fontSize:"x-small"}}>Add</button>
-          </form>
-          )
+        <div className="clause" style={{flexDirection:"column"}}>
+          <label>SELECT(
+            <form onSubmit={handleSelectSubmit} style={{display:"inline-block"}}>
+              <input
+                value={newSelectField}
+                onChange={e => setNewSelectField(e.target.value)}
+                placeholder="*"
+                style={{width:80}}
+              />{' '}
+              <button style={{fontSize:"x-small"}}>Add</button>
+            </form>
+            )
+          </label>
           <ul style={{margin:0,paddingLeft:"1em"}}>
           {
-            selectFields.map((value,i) => <li key={i} onClick={() => removeSelectItem(i)} style={{cursor:"pointer"}}>{value}</li>)
+            selectFields.map((value,i) => <li key={i} onClick={() => removeSelectItem(i)} style={{cursor:"pointer"}}>{value}: {value}</li>)
           }
           </ul>
         </div>
         <div className="clause">
-          WHERE <code>function (row) {'{'}</code><br/>
-          <textarea
-            value={whereText}
-            onChange={e => setWhereText(e.target.value)}
-            style={{marginLeft: "2em"}}
-            placeholder="return true;"
-          /><br/>
-          <code>{'}'}</code>
+          <label>WHERE <code>function (row) {'{'}</code>
+            <textarea
+              value={whereText}
+              onChange={e => setWhereText(e.target.value)}
+              style={{display:"block",marginLeft: "2em"}}
+              placeholder="return true;"
+            />
+            <code>{'}'}</code>
+          </label>
         </div>
         <div className="clause">
-          GROUP BY <code>function (row) {'{'}</code><br/>
-          <textarea
-            value={groupText}
-            onChange={e => setGroupText(e.target.value)}
-            style={{marginLeft: "2em"}}
-            placeholder="return null;"
-          /><br/>
-          <code>{'}'}</code>
+          <label>GROUP BY <code>function (row) {'{'}</code>
+            <textarea
+              value={groupText}
+              onChange={e => setGroupText(e.target.value)}
+              style={{display:"block",marginLeft: "2em"}}
+              placeholder="return null;"
+            />
+            <code>{'}'}</code>
+          </label>
         </div>
         <div className="clause">
-          ORDER BY <code>function (rowA, rowB) {'{'}</code><br/>
-          <textarea
-            value={orderText}
-            onChange={e => setOrderText(e.target.value)}
-            style={{marginLeft: "2em"}}
-            placeholder="return 0;"
-          /><br/>
-          <code>{'}'}</code>
+          <label>ORDER BY <code>function (rowA, rowB) {'{'}</code>
+            <textarea
+              value={orderText}
+              onChange={e => setOrderText(e.target.value)}
+              style={{display:"block",marginLeft: "2em"}}
+              placeholder="return 0;"
+            />
+            <code>{'}'}</code>
+          </label>
         </div>
         <div className="clause">
-          FETCH FIRST
-          <input
-            type="number"
-            value={limitText}
-            onChange={e => setLimitText(e.target.value)}
-            style={{margin: "0 1em", width: 60}}
-          />
-          ROWS ONLY
+          <label>FETCH FIRST
+            <input
+              type="number"
+              value={limitText}
+              onChange={e => setLimitText(e.target.value)}
+              style={{margin: "0 1em", width: 60}}
+            />
+            ROWS ONLY
+          </label>
         </div>
         <div className="clause">
           <label>DISTINCT
