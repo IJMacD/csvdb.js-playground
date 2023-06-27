@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CSVDB, RowObject } from 'csvdb.js';
 import './App.css'
 import { useSavedState } from './useSavedState';
@@ -28,7 +28,21 @@ function App() {
 
   const [sortText, setSortText] = useSavedState("csvdb-js-playground.sort", "");
 
-  const db = new CSVDB(csvText);
+  const db = useMemo(() => new CSVDB(csvText), [csvText]);
+
+  useEffect(() => {
+    if (db.rowCount > 1000) {
+      setLimitText(limitText => {
+        const limit = +limitText;
+        if (limitText.length > 0 && !isNaN(limit)) {
+          return Math.min(1000, +limit).toString();
+        }
+        else {
+          return "1000";
+        }
+      });
+    }
+  }, [db]);
 
   const query = db.query();
 
@@ -84,6 +98,9 @@ function App() {
 
   if (limitText.length > 0) {
     query.fetchFirst(+limitText);
+  }
+  else if (db.rowCount > 1000) {
+    query.fetchFirst(1000);
   }
 
   if (isDistinct) {

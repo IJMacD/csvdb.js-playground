@@ -21,7 +21,12 @@ export function useSavedState<T> (key: string, initialValue: T): [T, ((newValue:
 
         setState(newState);
 
-        localStorage.setItem(key, JSON.stringify(newState));
+        try {
+            localStorage.setItem(key, JSON.stringify(newState));
+        } catch (e) {
+            console.warn(`Unable to save state with key: ${key}`);
+            console.warn(e);
+        }
     }
 
     return [state, saveState];
