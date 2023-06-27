@@ -32,7 +32,7 @@ function App() {
 
   if (whereText.length > 0) {
     try {
-      const f = new Function("row", whereText);
+      const f = new Function("row", whereText) as (row: RowObject) => boolean;
       query.where(f);
     }
     catch (e) {}
@@ -40,7 +40,7 @@ function App() {
 
   if (groupText.length > 0) {
     try {
-      const f = new Function("row", groupText);
+      const f = new Function("row", groupText) as (row: RowObject) => any;
       query.groupBy(f);
     }
     catch (e) {}
@@ -48,7 +48,7 @@ function App() {
 
   if (orderText.length > 0) {
     try {
-      const f = new Function("rowA", "rowB", orderText);
+      const f = new Function("rowA", "rowB", orderText) as (rowA: RowObject, rowB: RowObject) => number;
       query.orderBy(f);
     }
     catch (e) {}
@@ -56,7 +56,7 @@ function App() {
 
   for (const join of joinTexts) {
     try {
-      const f = new Function("row", join);
+      const f = new Function("row", join) as (row: RowObject) => RowObject[];
       query.join(f);
     }
     catch (e) {}
@@ -77,6 +77,16 @@ function App() {
   }
   catch (e) {}
   const columns = results.length > 0 ? Object.keys(results[0]) : [];
+
+  async function handleFileChange (e: React.FormEvent<HTMLInputElement>) {
+    const currentTarget = e.currentTarget;
+    if (currentTarget.files && currentTarget.files.length > 0) {
+      const file = currentTarget.files[0];
+      const csv = await file.text();
+      setCSVText(csv);
+      currentTarget.value = "";
+    }
+  }
 
   function handleSelectSubmit (e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -103,9 +113,10 @@ function App() {
       <h1>CSVDB.js Playground</h1>
       <textarea
         value={csvText}
-        onChange={e => setCSVText(e.target.value)} style={{width: 800, height: 200}}
+        onChange={e => setCSVText(e.target.value)} style={{width: "95%", height: 200}}
         placeholder="Enter CSV"
       />
+      <input type="file" onChange={handleFileChange} style={{margin: "0 1em"}} />
       <p>Row Count: {db.rowCount}</p>
       <div style={{display:"flex",flexWrap:"wrap"}}>
         <div className="clause" style={{flexDirection:"column"}}>
