@@ -25,3 +25,20 @@ tr:nth-child(2n + 1) td {
 td, th {
   padding: 0.25em 0.5em;
 }
+
+code {
+  display: block;
+  background-color: field;
+  padding: 2px;
+}
+
+textarea {
+  border: none;
+  min-width: 90px;
+  min-height: 2em;
+}
+
+.btn-xs {
+  font-size: x-small;
+  padding: 0.35em 0.8em;
+}

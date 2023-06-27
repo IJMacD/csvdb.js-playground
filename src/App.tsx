@@ -3,10 +3,12 @@ import { CSVDB, RowObject } from 'csvdb.js';
 import './App.css'
 import { useSavedState } from './useSavedState';
 
+type SelectObject = { [alias: string]: string };
+
 function App() {
   const [csvText, setCSVText] = useSavedState("csvdb-js-playground.csv", "");
 
-  const [selectFields, setSelectFields] = useSavedState("csvdb-js-playground.select", [] as string[]);
+  const [selectFields, setSelectFields] = useSavedState("csvdb-js-playground.select", {} as SelectObject);
   const [newSelectField, setNewSelectField] = useState("");
 
   const [whereText, setWhereText] = useSavedState("csvdb-js-playground.where", "");
@@ -26,7 +28,7 @@ function App() {
 
   const query = db.query();
 
-  if (selectFields.length > 0) {
+  if (Object.keys(selectFields).length > 0) {
     query.select(selectFields);
   }
 
@@ -90,18 +92,34 @@ function App() {
 
   function handleSelectSubmit (e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSelectFields(f => [...f, newSelectField]);
-    setNewSelectField("");
+    if (newSelectField.length > 0) {
+      setSelectFields(o => ({ ...o, [newSelectField]: newSelectField }));
+      setNewSelectField("");
+    }
   }
 
-  function removeSelectItem (index: number) {
-    setSelectFields(fields => [ ...fields.slice(0, index), ...fields.slice(index + 1)]);
+  function removeSelectItem (alias: string) {
+    setSelectFields(({ [alias]: _, ...selectObject }) => selectObject);
   }
 
+  function handleAliasChange (oldAlias: string) {
+    const newAlias = prompt("Enter new alias:", oldAlias);
+    if (newAlias) {
+      setSelectFields(selectFields =>
+        Object.fromEntries(
+          Object.entries(selectFields).map(([alias, value]) =>
+            [(alias === oldAlias) ? newAlias : alias, value]
+          )
+        )
+      );
+    }
+  }
 
   function handleJoinSubmit () {
-    setJoinTexts(f => [...f, newJoinText]);
-    setNewJoinText("");
+    if (newJoinText.length > 0) {
+      setJoinTexts(f => [...f, newJoinText]);
+      setNewJoinText("");
+    }
   }
 
   function removeJoin (index: number) {
@@ -128,47 +146,72 @@ function App() {
                 placeholder="*"
                 style={{width:80}}
               />{' '}
-              <button style={{fontSize:"x-small"}}>Add</button>
+              <button className="btn-xs">Add</button>
             </form>
             )
           </label>
           <ul style={{margin:0,paddingLeft:"1em"}}>
           {
-            selectFields.map((value,i) => <li key={i} onClick={() => removeSelectItem(i)} style={{cursor:"pointer"}}>{value}: {value}</li>)
+            Object.entries(selectFields).map(([alias,value],i) => <li key={i} onClick={() => handleAliasChange(alias)} style={{cursor:"pointer"}}>{alias}: {value} <button onClick={e => { e.stopPropagation(); removeSelectItem(alias); }} className="btn-xs">❌︎</button></li>)
           }
           </ul>
         </div>
         <div className="clause">
-          <label>WHERE <code>function (row) {'{'}</code>
-            <textarea
-              value={whereText}
-              onChange={e => setWhereText(e.target.value)}
-              style={{display:"block",marginLeft: "2em"}}
-              placeholder="return true;"
-            />
-            <code>{'}'}</code>
+          <label>WHERE
+            <code>{'function (row) {'}
+              <textarea
+                value={whereText}
+                onChange={e => setWhereText(e.target.value)}
+                style={{display:"block",marginLeft: "2em"}}
+                placeholder="return true;"
+              />
+              {'}'}
+            </code>
+          </label>
+        </div>
+        <div className="clause" style={{flexDirection:"column"}}>
+          <label>JOIN
+            <code>{'function (row) {'}
+              <textarea
+                value={newJoinText}
+                onChange={e => setNewJoinText(e.target.value)}
+                style={{display:"block",marginLeft: "2em"}}
+                placeholder="return [row];"
+              />
+              {'}'}
+            </code>
+            <button className="btn-xs" onClick={handleJoinSubmit}>Add</button>
+          </label>
+          <ul style={{margin:0,paddingLeft:"1em"}}>
+          {
+            joinTexts.map((value,i) => <li key={i} onClick={() => removeJoin(i)} style={{cursor:"pointer"}}>row =&gt; {'{'}{value}{'}'}</li>)
+          }
+          </ul>
+        </div>
+        <div className="clause">
+          <label>GROUP BY
+            <code>{'function (row) {'}
+              <textarea
+                value={groupText}
+                onChange={e => setGroupText(e.target.value)}
+                style={{display:"block",marginLeft: "2em"}}
+                placeholder="return null;"
+              />
+              {'}'}
+            </code>
           </label>
         </div>
         <div className="clause">
-          <label>GROUP BY <code>function (row) {'{'}</code>
-            <textarea
-              value={groupText}
-              onChange={e => setGroupText(e.target.value)}
-              style={{display:"block",marginLeft: "2em"}}
-              placeholder="return null;"
-            />
-            <code>{'}'}</code>
-          </label>
-        </div>
-        <div className="clause">
-          <label>ORDER BY <code>function (rowA, rowB) {'{'}</code>
-            <textarea
-              value={orderText}
-              onChange={e => setOrderText(e.target.value)}
-              style={{display:"block",marginLeft: "2em"}}
-              placeholder="return 0;"
-            />
-            <code>{'}'}</code>
+          <label>ORDER BY
+            <code>{'function (rowA, rowB) {'}
+              <textarea
+                value={orderText}
+                onChange={e => setOrderText(e.target.value)}
+                style={{display:"block",marginLeft: "2em"}}
+                placeholder="return 0;"
+              />
+              {'}'}
+            </code>
           </label>
         </div>
         <div className="clause">
@@ -190,23 +233,6 @@ function App() {
               onChange={e => setIsDistinct(e.target.checked)}
             />
           </label>
-        </div>
-        <div className="clause" style={{flexDirection:"column"}}>
-          <label>JOIN <code>function (row) {'{'}</code>
-            <textarea
-              value={newJoinText}
-              onChange={e => setNewJoinText(e.target.value)}
-              style={{display:"block",marginLeft: "2em"}}
-              placeholder="return [row];"
-            />
-            <code>{'}'}</code>
-            <button style={{fontSize:"x-small"}} onClick={handleJoinSubmit}>Add</button>
-          </label>
-          <ul style={{margin:0,paddingLeft:"1em"}}>
-          {
-            joinTexts.map((value,i) => <li key={i} onClick={() => removeJoin(i)} style={{cursor:"pointer"}}>row =&gt; {'{'}{value}{'}'}</li>)
-          }
-          </ul>
         </div>
       </div>
       <h2>Results</h2>
