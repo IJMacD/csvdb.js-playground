@@ -24,6 +24,10 @@ function App() {
   const [joinTexts, setJoinTexts] = useSavedState("csvdb-js-playground.join", [] as string[]);
   const [newJoinText, setNewJoinText] = useState("");
 
+  const [havingText, setHavingText] = useSavedState("csvdb-js-playground.having", "");
+
+  const [sortText, setSortText] = useSavedState("csvdb-js-playground.sort", "");
+
   const db = new CSVDB(csvText);
 
   const query = db.query();
@@ -79,6 +83,22 @@ function App() {
   }
   catch (e) {}
   const columns = results.length > 0 ? Object.keys(results[0]) : [];
+
+  if (havingText.length > 0) {
+    try {
+      const f = new Function("row", havingText) as (row: RowObject) => boolean;
+      results = results.filter(f);
+    }
+    catch (e) {}
+  }
+
+  if (sortText.length > 0) {
+    try {
+      const f = new Function("rowA", "rowB", sortText) as (rowA: RowObject, rowB: RowObject) => number;
+      results.sort(f);
+    }
+    catch (e) {}
+  }
 
   async function handleFileChange (e: React.FormEvent<HTMLInputElement>) {
     const currentTarget = e.currentTarget;
@@ -232,6 +252,32 @@ function App() {
               checked={isDistinct}
               onChange={e => setIsDistinct(e.target.checked)}
             />
+          </label>
+        </div>
+        <div className="clause">
+          <label>HAVING
+            <code>{'function (row) {'}
+              <textarea
+                value={havingText}
+                onChange={e => setHavingText(e.target.value)}
+                style={{display:"block",marginLeft: "2em"}}
+                placeholder="return true;"
+              />
+              {'}'}
+            </code>
+          </label>
+        </div>
+        <div className="clause">
+          <label>Sort
+            <code>{'function (rowA, rowB) {'}
+              <textarea
+                value={sortText}
+                onChange={e => setSortText(e.target.value)}
+                style={{display:"block",marginLeft: "2em"}}
+                placeholder="return 0;"
+              />
+              {'}'}
+            </code>
           </label>
         </div>
       </div>
