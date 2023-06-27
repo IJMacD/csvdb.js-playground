@@ -33,7 +33,21 @@ function App() {
   const query = db.query();
 
   if (Object.keys(selectFields).length > 0) {
-    query.select(selectFields);
+    const selectObject =
+      Object.fromEntries(
+        Object.entries(selectFields).map(([alias, value]) => {
+          if (value.includes("=>")) {
+            const [args, body] = value.split("=>", 2);
+            try {
+              const f = new Function(args, `return ${body}`) as (row: RowObject) => any;
+              return [alias, f];
+            }
+            catch (e) {}
+          }
+          return [alias, value];
+        })
+      );
+    query.select(selectObject);
   }
 
   if (whereText.length > 0) {
