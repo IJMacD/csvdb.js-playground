@@ -149,6 +149,20 @@ function App() {
     }
   }
 
+  function handleColumnChange (alias: string) {
+    const oldColumn = selectFields[alias];
+    const newColumn = prompt("Enter new column definition:", oldColumn);
+    if (newColumn) {
+      setSelectFields(selectFields =>
+        Object.fromEntries(
+          Object.entries(selectFields).map(([a, value]) =>
+            [a, (alias === a) ? newColumn : value]
+          )
+        )
+      );
+    }
+  }
+
   function handleJoinSubmit () {
     if (newJoinText.length > 0) {
       setJoinTexts(f => [...f, newJoinText]);
@@ -186,7 +200,13 @@ function App() {
           </label>
           <ul style={{margin:0,paddingLeft:"1em"}}>
           {
-            Object.entries(selectFields).map(([alias,value],i) => <li key={i} onClick={() => handleAliasChange(alias)} style={{cursor:"pointer"}}>{alias}: {value} <button onClick={e => { e.stopPropagation(); removeSelectItem(alias); }} className="btn-xs">❌︎</button></li>)
+            Object.entries(selectFields).map(([alias,value],i) =>
+              <li key={i}>
+                <span onClick={() => handleAliasChange(alias)} className="select-edit">{alias}</span>: {' '}
+                <span onClick={() => handleColumnChange(alias)} className="select-edit">{value}</span> {' '}
+                <button onClick={e => { e.stopPropagation(); removeSelectItem(alias); }} className="btn-xs">❌︎</button>
+              </li>
+            )
           }
           </ul>
         </div>
