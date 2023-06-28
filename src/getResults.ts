@@ -7,7 +7,19 @@ export function getResults(db: CSVDB, querySpec: QuerySpec) {
   if (Object.keys(querySpec.select).length > 0) {
     const selectObject = Object.fromEntries(
       Object.entries(querySpec.select).map(([alias, value]) => {
-        if (value.includes("=>")) {
+        if (value.startsWith("function")) {
+          const match = /function\s+[a-z0-9_]*\s*\(([^)]*)\)\s*{(.*)}\s*$/.exec(value);
+          if (match) {
+            const args = match[1];
+            const body = match[2];
+            try {
+              const f = new Function(args, body) as (row: RowObject) => any;
+              return [alias, f];
+            }
+            catch (e) { }
+          }
+        }
+        else if (value.includes("=>")) {
           const idx = value.indexOf("=>");
           const args = value.substring(0, idx).replace(/^\s*\(|\)\s*$/g, "");
           const body = `return ${value.substring(idx + 2)}`;
