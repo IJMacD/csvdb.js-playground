@@ -1,9 +1,19 @@
 import { useSavedState } from "./useSavedState";
 
 type SelectObject = { [alias: string]: string };
+export type QuerySpec = {
+    select: SelectObject;
+    where: string;
+    group: string;
+    order: string;
+    limit: string;
+    isDistinct: boolean;
+    joins: string[];
+    having: string;
+};
 
 export function useQueryBuilder (key: string) {
-    const [query, setQuery] = useSavedState(key, {
+    const defaultQuery = {
         select: {} as SelectObject,
         where: "",
         group: "",
@@ -11,7 +21,10 @@ export function useQueryBuilder (key: string) {
         limit: "",
         isDistinct: false,
         joins: [] as string[],
-    });
+        having: "",
+    };
+
+    const [query, setQuery] = useSavedState(key, defaultQuery);
 
     function setSelect (stateSetter: (oldValue: SelectObject) => SelectObject) {
         setQuery(oldQuery => {
@@ -55,14 +68,23 @@ export function useQueryBuilder (key: string) {
         });
     }
 
+    function setHaving (having: string) {
+        setQuery(oldQuery => {
+            return { ...oldQuery, having };
+        });
+    }
+
     return {
         query,
+        setQuery,
+        resetQuery: () => setQuery(defaultQuery),
         setSelect,
         setWhere,
         setGroup,
         setOrder,
         setLimit,
         setIsDistinct,
-        setJoins
+        setJoins,
+        setHaving,
     };
 }

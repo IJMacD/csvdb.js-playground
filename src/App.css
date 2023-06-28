@@ -38,6 +38,11 @@ textarea {
   min-height: 2.3em;
 }
 
+.btn-sm {
+  font-size: small;
+  padding: 0.5em 1em;
+}
+
 .btn-xs {
   font-size: x-small;
   padding: 0.35em 0.8em;
@@ -51,4 +56,15 @@ textarea {
 .select-edit:hover {
   background-color: rgba(0,0,0,0.3);
   box-shadow: 0 0 0 4px rgba(0,0,0,0.3);
+}
+
+@media (min-width: 768px) {
+  .query-builder {
+    display: flex;
+  }
+
+  .saved-queries {
+    border-left: 1px solid rgba(255,255,255,0.5);
+    padding-left: 1em;
+  }
 }

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { CSVDB, RowObject } from 'csvdb.js';
 import './App.css'
 import { useSavedState } from './useSavedState';
-import { useQueryBuilder } from './useQueryBuilder.js';
+import { QuerySpec, useQueryBuilder } from './useQueryBuilder.js';
+import { getResults } from './getResults.js';
 
 function App() {
   const [csvText, setCSVText] = useSavedState("csvdb-js-playground.csv", "");
@@ -10,19 +11,23 @@ function App() {
   const [newSelectField, setNewSelectField] = useState("");
   const [newJoinText, setNewJoinText] = useState("");
 
-  const [havingText, setHavingText] = useSavedState("csvdb-js-playground.having", "");
-
   const [sortText, setSortText] = useSavedState("csvdb-js-playground.sort", "");
+
+  const [savedQueries, setSavedQueries] = useSavedState("csvdb-js-playground.saved-queries", [] as { name: string, query: QuerySpec }[]);
+  const [newSaveName, setNewSaveName] = useState("");
 
   const {
     query: querySpec,
+    setQuery,
     setSelect,
+    resetQuery,
     setWhere,
     setGroup,
     setOrder,
     setLimit,
     setIsDistinct,
-    setJoins
+    setJoins,
+    setHaving,
   } = useQueryBuilder("csvdb-js-playground.query");
 
   const db = useMemo(() => new CSVDB(csvText), [csvText]);
@@ -41,80 +46,12 @@ function App() {
     }
   }, [db]);
 
-  const query = db.query();
-
-  if (Object.keys(querySpec.select).length > 0) {
-    const selectObject =
-      Object.fromEntries(
-        Object.entries(querySpec.select).map(([alias, value]) => {
-          if (value.includes("=>")) {
-            const [args, body] = value.split("=>", 2);
-            try {
-              const f = new Function(args.replace(/^\s*\(|\)\s*$/g, ""), `return ${body}`) as (row: RowObject) => any;
-              return [alias, f];
-            }
-            catch (e) {}
-          }
-          return [alias, value];
-        })
-      );
-    query.select(selectObject);
-  }
-
-  if (querySpec.where.length > 0) {
-    try {
-      const f = new Function("row", querySpec.where) as (row: RowObject) => boolean;
-      query.where(f);
-    }
-    catch (e) {}
-  }
-
-  if (querySpec.group.length > 0) {
-    try {
-      const f = new Function("row", querySpec.group) as (row: RowObject) => any;
-      query.groupBy(f);
-    }
-    catch (e) {}
-  }
-
-  if (querySpec.order.length > 0) {
-    try {
-      const f = new Function("rowA", "rowB", querySpec.order) as (rowA: RowObject, rowB: RowObject) => number;
-      query.orderBy(f);
-    }
-    catch (e) {}
-  }
-
-  for (const join of querySpec.joins) {
-    try {
-      const f = new Function("row", join) as (row: RowObject) => RowObject[];
-      query.join(f);
-    }
-    catch (e) {}
-  }
-
-  if (querySpec.limit.length > 0) {
-    query.fetchFirst(+querySpec.limit);
-  }
-  else if (db.rowCount > 1000) {
-    query.fetchFirst(1000);
-  }
-
-  if (querySpec.isDistinct) {
-    query.distinct(querySpec.isDistinct);
-  }
-
-  let results = [] as RowObject[];
-
-  try {
-    results = [...query];
-  }
-  catch (e) {}
+  let results = getResults(db, querySpec);
   const columns = results.length > 0 ? Object.keys(results[0]) : [];
 
-  if (havingText.length > 0) {
+  if (querySpec.having.length > 0) {
     try {
-      const f = new Function("row", havingText) as (row: RowObject) => boolean;
+      const f = new Function("row", querySpec.having) as (row: RowObject) => boolean;
       results = results.filter(f);
     }
     catch (e) {}
@@ -188,6 +125,17 @@ function App() {
     setJoins(texts => [ ...texts.slice(0, index), ...texts.slice(index + 1)]);
   }
 
+  function handleSaveQuery () {
+    if (newSaveName.length > 0) {
+      setSavedQueries(queries => [ { name: newSaveName, query: querySpec }, ...queries ]);
+      setNewSaveName("");
+    }
+  }
+
+  function handleRemoveSavedQuery (index: number) {
+    setSavedQueries(queries => [ ...queries.slice(0, index), ...queries.slice(index + 1) ]);
+  }
+
   return (
     <>
       <h1>CSVDB.js Playground</h1>
@@ -198,6 +146,7 @@ function App() {
       />
       <input type="file" onChange={handleFileChange} style={{margin: "0 1em"}} />
       <p>Row Count: {db.rowCount}</p>
+      <div className="query-builder">
       <div style={{display:"flex",flexWrap:"wrap"}}>
         <div className="clause" style={{flexDirection:"column"}}>
           <label>SELECT(
@@ -306,8 +255,8 @@ function App() {
           <label>HAVING
             <code>{'function (row) {'}
               <textarea
-                value={havingText}
-                onChange={e => setHavingText(e.target.value)}
+                  value={querySpec.having}
+                  onChange={e => setHaving(e.target.value)}
                 style={{display:"block",marginLeft: "2em"}}
                 placeholder="return true;"
               />
@@ -327,9 +276,29 @@ function App() {
               {'}'}
             </code>
           </label>
+          </div>
+        </div>
+        <div className="saved-queries">
+          <h3>Saved Queries</h3>
+          <ul style={{listStyle:"none",padding:0}}>
+            {
+              savedQueries.map(({name,query}, i) =>
+                <li key={i} style={{cursor:"pointer"}} onClick={() => setQuery(query)}>
+                  {name}{' '}
+                  <button className="btn-xs" onClick={() => handleRemoveSavedQuery(i)}>❌︎</button>
+                </li>
+              )
+            }
+          </ul>
+          <form onSubmit={e => {e.preventDefault(); handleSaveQuery()}}>
+            <input value={newSaveName} onChange={e => setNewSaveName(e.target.value)} />
+            <button className="btn-sm">Save</button>
+          </form>
+          <button className="btn-sm" onClick={() => resetQuery()}>Clear Query</button>
         </div>
       </div>
       <h2>Results</h2>
+      <p>Row Count: {results.length}</p>
       <table>
         <thead>
           <tr>
@@ -342,7 +311,6 @@ function App() {
           }
         </tbody>
       </table>
-      <p>Row Count: {results.length}</p>
     </>
   )
 }
