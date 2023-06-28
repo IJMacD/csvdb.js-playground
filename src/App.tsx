@@ -2,37 +2,34 @@ import { useEffect, useMemo, useState } from 'react'
 import { CSVDB, RowObject } from 'csvdb.js';
 import './App.css'
 import { useSavedState } from './useSavedState';
-
-type SelectObject = { [alias: string]: string };
+import { useQueryBuilder } from './useQueryBuilder.js';
 
 function App() {
   const [csvText, setCSVText] = useSavedState("csvdb-js-playground.csv", "");
 
-  const [selectFields, setSelectFields] = useSavedState("csvdb-js-playground.select", {} as SelectObject);
   const [newSelectField, setNewSelectField] = useState("");
-
-  const [whereText, setWhereText] = useSavedState("csvdb-js-playground.where", "");
-
-  const [groupText, setGroupText] = useSavedState("csvdb-js-playground.group", "");
-
-  const [orderText, setOrderText] = useSavedState("csvdb-js-playground.order", "");
-
-  const [limitText, setLimitText] = useSavedState("csvdb-js-playground.limit", "");
-
-  const [isDistinct, setIsDistinct] = useSavedState("csvdb-js-playground.distinct", false);
-
-  const [joinTexts, setJoinTexts] = useSavedState("csvdb-js-playground.join", [] as string[]);
   const [newJoinText, setNewJoinText] = useState("");
 
   const [havingText, setHavingText] = useSavedState("csvdb-js-playground.having", "");
 
   const [sortText, setSortText] = useSavedState("csvdb-js-playground.sort", "");
 
+  const {
+    query: querySpec,
+    setSelect,
+    setWhere,
+    setGroup,
+    setOrder,
+    setLimit,
+    setIsDistinct,
+    setJoins
+  } = useQueryBuilder("csvdb-js-playground.query");
+
   const db = useMemo(() => new CSVDB(csvText), [csvText]);
 
   useEffect(() => {
     if (db.rowCount > 1000) {
-      setLimitText(limitText => {
+      setLimit(limitText => {
         const limit = +limitText;
         if (limitText.length > 0 && !isNaN(limit)) {
           return Math.min(1000, +limit).toString();
@@ -46,14 +43,14 @@ function App() {
 
   const query = db.query();
 
-  if (Object.keys(selectFields).length > 0) {
+  if (Object.keys(querySpec.select).length > 0) {
     const selectObject =
       Object.fromEntries(
-        Object.entries(selectFields).map(([alias, value]) => {
+        Object.entries(querySpec.select).map(([alias, value]) => {
           if (value.includes("=>")) {
             const [args, body] = value.split("=>", 2);
             try {
-              const f = new Function(args, `return ${body}`) as (row: RowObject) => any;
+              const f = new Function(args.replace(/^\s*\(|\)\s*$/g, ""), `return ${body}`) as (row: RowObject) => any;
               return [alias, f];
             }
             catch (e) {}
@@ -64,31 +61,31 @@ function App() {
     query.select(selectObject);
   }
 
-  if (whereText.length > 0) {
+  if (querySpec.where.length > 0) {
     try {
-      const f = new Function("row", whereText) as (row: RowObject) => boolean;
+      const f = new Function("row", querySpec.where) as (row: RowObject) => boolean;
       query.where(f);
     }
     catch (e) {}
   }
 
-  if (groupText.length > 0) {
+  if (querySpec.group.length > 0) {
     try {
-      const f = new Function("row", groupText) as (row: RowObject) => any;
+      const f = new Function("row", querySpec.group) as (row: RowObject) => any;
       query.groupBy(f);
     }
     catch (e) {}
   }
 
-  if (orderText.length > 0) {
+  if (querySpec.order.length > 0) {
     try {
-      const f = new Function("rowA", "rowB", orderText) as (rowA: RowObject, rowB: RowObject) => number;
+      const f = new Function("rowA", "rowB", querySpec.order) as (rowA: RowObject, rowB: RowObject) => number;
       query.orderBy(f);
     }
     catch (e) {}
   }
 
-  for (const join of joinTexts) {
+  for (const join of querySpec.joins) {
     try {
       const f = new Function("row", join) as (row: RowObject) => RowObject[];
       query.join(f);
@@ -96,15 +93,15 @@ function App() {
     catch (e) {}
   }
 
-  if (limitText.length > 0) {
-    query.fetchFirst(+limitText);
+  if (querySpec.limit.length > 0) {
+    query.fetchFirst(+querySpec.limit);
   }
   else if (db.rowCount > 1000) {
     query.fetchFirst(1000);
   }
 
-  if (isDistinct) {
-    query.distinct(isDistinct);
+  if (querySpec.isDistinct) {
+    query.distinct(querySpec.isDistinct);
   }
 
   let results = [] as RowObject[];
@@ -144,19 +141,19 @@ function App() {
   function handleSelectSubmit (e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (newSelectField.length > 0) {
-      setSelectFields(o => ({ ...o, [newSelectField]: newSelectField }));
+      setSelect(o => ({ ...o, [newSelectField]: newSelectField }));
       setNewSelectField("");
     }
   }
 
   function removeSelectItem (alias: string) {
-    setSelectFields(({ [alias]: _, ...selectObject }) => selectObject);
+    setSelect(({ [alias]: _, ...selectObject }) => selectObject);
   }
 
   function handleAliasChange (oldAlias: string) {
     const newAlias = prompt("Enter new alias:", oldAlias);
     if (newAlias) {
-      setSelectFields(selectFields =>
+      setSelect(selectFields =>
         Object.fromEntries(
           Object.entries(selectFields).map(([alias, value]) =>
             [(alias === oldAlias) ? newAlias : alias, value]
@@ -167,10 +164,10 @@ function App() {
   }
 
   function handleColumnChange (alias: string) {
-    const oldColumn = selectFields[alias];
+    const oldColumn = querySpec.select[alias];
     const newColumn = prompt("Enter new column definition:", oldColumn);
     if (newColumn) {
-      setSelectFields(selectFields =>
+      setSelect(selectFields =>
         Object.fromEntries(
           Object.entries(selectFields).map(([a, value]) =>
             [a, (alias === a) ? newColumn : value]
@@ -182,13 +179,13 @@ function App() {
 
   function handleJoinSubmit () {
     if (newJoinText.length > 0) {
-      setJoinTexts(f => [...f, newJoinText]);
+      setJoins(f => [...f, newJoinText]);
       setNewJoinText("");
     }
   }
 
   function removeJoin (index: number) {
-    setJoinTexts(texts => [ ...texts.slice(0, index), ...texts.slice(index + 1)]);
+    setJoins(texts => [ ...texts.slice(0, index), ...texts.slice(index + 1)]);
   }
 
   return (
@@ -217,7 +214,7 @@ function App() {
           </label>
           <ul style={{margin:0,paddingLeft:"1em"}}>
           {
-            Object.entries(selectFields).map(([alias,value],i) =>
+            Object.entries(querySpec.select).map(([alias,value],i) =>
               <li key={i}>
                 <span onClick={() => handleAliasChange(alias)} className="select-edit">{alias}</span>: {' '}
                 <span onClick={() => handleColumnChange(alias)} className="select-edit">{value}</span> {' '}
@@ -231,8 +228,8 @@ function App() {
           <label>WHERE
             <code>{'function (row) {'}
               <textarea
-                value={whereText}
-                onChange={e => setWhereText(e.target.value)}
+                value={querySpec.where}
+                onChange={e => setWhere(e.target.value)}
                 style={{display:"block",marginLeft: "2em"}}
                 placeholder="return true;"
               />
@@ -255,7 +252,7 @@ function App() {
           </label>
           <ul style={{margin:0,paddingLeft:"1em"}}>
           {
-            joinTexts.map((value,i) => <li key={i} onClick={() => removeJoin(i)} style={{cursor:"pointer"}}>row =&gt; {'{'}{value}{'}'}</li>)
+            querySpec.joins.map((value,i) => <li key={i} onClick={() => removeJoin(i)} style={{cursor:"pointer"}}>row =&gt; {'{'}{value}{'}'}</li>)
           }
           </ul>
         </div>
@@ -263,8 +260,8 @@ function App() {
           <label>GROUP BY
             <code>{'function (row) {'}
               <textarea
-                value={groupText}
-                onChange={e => setGroupText(e.target.value)}
+                value={querySpec.group}
+                onChange={e => setGroup(e.target.value)}
                 style={{display:"block",marginLeft: "2em"}}
                 placeholder="return null;"
               />
@@ -276,8 +273,8 @@ function App() {
           <label>ORDER BY
             <code>{'function (rowA, rowB) {'}
               <textarea
-                value={orderText}
-                onChange={e => setOrderText(e.target.value)}
+                value={querySpec.order}
+                onChange={e => setOrder(e.target.value)}
                 style={{display:"block",marginLeft: "2em"}}
                 placeholder="return 0;"
               />
@@ -289,8 +286,8 @@ function App() {
           <label>FETCH FIRST
             <input
               type="number"
-              value={limitText}
-              onChange={e => setLimitText(e.target.value)}
+              value={querySpec.limit}
+              onChange={e => setLimit(e.target.value)}
               style={{margin: "0 1em", width: 60}}
             />
             ROWS ONLY
@@ -300,7 +297,7 @@ function App() {
           <label>DISTINCT
             <input
               type="checkbox"
-              checked={isDistinct}
+              checked={querySpec.isDistinct}
               onChange={e => setIsDistinct(e.target.checked)}
             />
           </label>
